@@ -226,11 +226,11 @@ parseBytes() {
         elif matchesAny $unit "${KILO_BYTES_UNITS[*]}"; then
                 multiplier=1024
         elif matchesAny $unit "${MEGA_BYTES_UNITS[*]}"; then
-                multiplier=`expr 1024 \* 1024`
+                multiplier=$((1024 * 1024))
         elif matchesAny $unit "${GIGA_BYTES_UNITS[*]}"; then
-                multiplier=`expr 1024 \* 1024 \* 1024`
+                multiplier=$((1024 * 1024 * 1024))
         elif matchesAny $unit "${TERA_BYTES_UNITS[*]}"; then
-                multiplier=`expr 1024 \* 1024 \* 1024 \* 1024`
+                multiplier=$((1024 * 1024 * 1024 * 1024))
         else
             echo "[ERROR] Memory size unit $unit does not match any of the recognized units"
             exit 1
@@ -561,7 +561,7 @@ rotateLogFile() {
     num=$MAX_LOG_FILE_NUMBER
     if [ -f "$log" -a "$num" -gt 0 ]; then
         while [ $num -gt 1 ]; do
-            prev=`expr $num - 1`
+            prev=$(($num - 1))
             [ -f "$log.$prev" ] && mv "$log.$prev" "$log.$num"
             num=$prev
         done
