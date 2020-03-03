@@ -156,7 +156,7 @@ TERA_BYTES_UNITS=("t" "tb" "tebibytes")
 hasUnit() {
     text=$1
 
-    trimmed=$(echo -e "${text}" | tr -d '[:space:]')
+    trimmed=${text// /}
 
     if [ -z "$trimmed" -o "$trimmed" == " " ]; then
         echo "$trimmed is an empty- or whitespace-only string"
@@ -178,7 +178,7 @@ hasUnit() {
     number=${trimmed:0:pos}
 
     unit=${trimmed:$pos}
-    unit=$(echo -e "${unit}" | tr -d '[:space:]')
+    unit=${unit// /}
     unit=$(echo -e "${unit}" | tr '[A-Z]' '[a-z]')
 
     [[ ! -z "$unit" ]]
@@ -187,7 +187,7 @@ hasUnit() {
 parseBytes() {
     text=$1
 
-    trimmed=$(echo -e "${text}" | tr -d '[:space:]')
+    trimmed=${text// /}
 
     if [ -z "$trimmed" -o "$trimmed" == " " ]; then
         echo "$trimmed is an empty- or whitespace-only string"
@@ -209,7 +209,7 @@ parseBytes() {
     number=${trimmed:0:pos}
 
     unit=${trimmed:$pos}
-    unit=$(echo -e "${unit}" | tr -d '[:space:]')
+    unit=${unit// /}
     unit=$(echo -e "${unit}" | tr '[A-Z]' '[a-z]')
 
     if [ -z "$number" ]; then
