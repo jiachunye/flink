@@ -80,19 +80,25 @@ manglePathList() {
 }
 
 # Looks up a config value by key from a simple YAML-style key-value map.
+# There is a significant speed overhead to using a subshell and here is a much faster alternative.
+# The convention is that $configValue is always the return value of this function.
 # $1: key to look up
 # $2: default value to return if key does not exist
-# $3: config file to read from
 readFromConfig() {
-    local key=$1
+    local pattern="^[ ]*${1}[ ]*: "
     local defaultValue=$2
-    local configFile=$3
 
-    # first extract the value with the given key (1st sed), then trim the result (2nd sed)
-    # if a key exists multiple times, take the "last" one (tail)
-    local value=`sed -n "s/^[ ]*${key}[ ]*: \([^#]*\).*$/\1/p" "${configFile}" | sed "s/^ *//;s/ *$//" | tail -n 1`
+    configValue=''
+    for line in "${CONFIG[@]}"; do
+        if [[ "$line" =~ $pattern ]]; then
+            value=${line#*:}
+            value=${value%%#*}
+            configValue=$value
+            break
+        fi
+    done
 
-    [ -z "$value" ] && echo "$defaultValue" || echo "$value"
+    [ -z "${configValue}" ] && configValue=$defaultValue
 }
 
 ########################################################################################################################
@@ -318,6 +324,23 @@ DEFAULT_FLINK_LOG_DIR=$FLINK_HOME_DIR_MANGLED/log
 FLINK_CONF_FILE="flink-conf.yaml"
 YAML_CONF=${FLINK_CONF_DIR}/${FLINK_CONF_FILE}
 
+CONFIG=()
+# read config from file
+while read line
+do
+    CONFIG[${#CONFIG[@]}]="$line"
+done < "$YAML_CONF"
+# reverse the config array
+min=0
+max=$(( ${#CONFIG[@]} -1 ))
+while [[ min -lt max ]]
+do
+    x="${CONFIG[$min]}"
+    CONFIG[$min]="${CONFIG[$max]}"
+    CONFIG[$max]="$x"
+    (( min++, max-- ))
+done
+
 ### Exported environment variables ###
 export FLINK_CONF_DIR
 export FLINK_BIN_DIR
@@ -332,7 +355,8 @@ export FLINK_OPT_DIR
 ########################################################################################################################
 
 # read JAVA_HOME from config with no default value
-MY_JAVA_HOME=$(readFromConfig ${KEY_ENV_JAVA_HOME} "" "${YAML_CONF}")
+readFromConfig ${KEY_ENV_JAVA_HOME} ""
+MY_JAVA_HOME=$configValue
 # check if config specified JAVA_HOME
 if [ -z "${MY_JAVA_HOME}" ]; then
     # config did not specify JAVA_HOME. Use system JAVA_HOME
@@ -366,12 +390,14 @@ IS_NUMBER="^[0-9]+$"
 
 # Define FLINK_JM_HEAP if it is not already set
 if [ -z "${FLINK_JM_HEAP}" ]; then
-    FLINK_JM_HEAP=$(readFromConfig ${KEY_JOBM_MEM_SIZE} 0 "${YAML_CONF}")
+    readFromConfig ${KEY_JOBM_MEM_SIZE} 0
+    FLINK_JM_HEAP=$configValue
 fi
 
 # Try read old config key, if new key not exists
 if [ "${FLINK_JM_HEAP}" == 0 ]; then
-    FLINK_JM_HEAP_MB=$(readFromConfig ${KEY_JOBM_MEM_MB} 0 "${YAML_CONF}")
+    readFromConfig ${KEY_JOBM_MEM_MB} 0
+    FLINK_JM_HEAP_MB=$configValue
 fi
 
 # Verify that NUMA tooling is available
@@ -381,70 +407,84 @@ if [[ $? -ne 0 ]]; then
 else
     # Define FLINK_TM_COMPUTE_NUMA if it is not already set
     if [ -z "${FLINK_TM_COMPUTE_NUMA}" ]; then
-        FLINK_TM_COMPUTE_NUMA=$(readFromConfig ${KEY_TASKM_COMPUTE_NUMA} "false" "${YAML_CONF}")
+        readFromConfig ${KEY_TASKM_COMPUTE_NUMA} "false"
+        FLINK_TM_COMPUTE_NUMA=$configValue
     fi
 fi
 
 if [ -z "${MAX_LOG_FILE_NUMBER}" ]; then
-    MAX_LOG_FILE_NUMBER=$(readFromConfig ${KEY_ENV_LOG_MAX} ${DEFAULT_ENV_LOG_MAX} "${YAML_CONF}")
+    readFromConfig ${KEY_ENV_LOG_MAX} ${DEFAULT_ENV_LOG_MAX}
+    MAX_LOG_FILE_NUMBER=$configValue
 fi
 
 if [ -z "${FLINK_LOG_DIR}" ]; then
-    FLINK_LOG_DIR=$(readFromConfig ${KEY_ENV_LOG_DIR} "${DEFAULT_FLINK_LOG_DIR}" "${YAML_CONF}")
+    readFromConfig ${KEY_ENV_LOG_DIR} "${DEFAULT_FLINK_LOG_DIR}"
+    FLINK_LOG_DIR=$configValue
 fi
 
 if [ -z "${YARN_CONF_DIR}" ]; then
-    YARN_CONF_DIR=$(readFromConfig ${KEY_ENV_YARN_CONF_DIR} "${DEFAULT_YARN_CONF_DIR}" "${YAML_CONF}")
+    readFromConfig ${KEY_ENV_YARN_CONF_DIR} "${DEFAULT_YARN_CONF_DIR}"
+    YARN_CONF_DIR=$configValue
 fi
 
 if [ -z "${HADOOP_CONF_DIR}" ]; then
-    HADOOP_CONF_DIR=$(readFromConfig ${KEY_ENV_HADOOP_CONF_DIR} "${DEFAULT_HADOOP_CONF_DIR}" "${YAML_CONF}")
+    readFromConfig ${KEY_ENV_HADOOP_CONF_DIR} "${DEFAULT_HADOOP_CONF_DIR}"
+    HADOOP_CONF_DIR=$configValue
 fi
 
 if [ -z "${FLINK_PID_DIR}" ]; then
-    FLINK_PID_DIR=$(readFromConfig ${KEY_ENV_PID_DIR} "${DEFAULT_ENV_PID_DIR}" "${YAML_CONF}")
+    readFromConfig ${KEY_ENV_PID_DIR} "${DEFAULT_ENV_PID_DIR}"
+    FLINK_PID_DIR=$configValue
 fi
 
 if [ -z "${FLINK_ENV_JAVA_OPTS}" ]; then
-    FLINK_ENV_JAVA_OPTS=$(readFromConfig ${KEY_ENV_JAVA_OPTS} "${DEFAULT_ENV_JAVA_OPTS}" "${YAML_CONF}")
+    readFromConfig ${KEY_ENV_JAVA_OPTS} "${DEFAULT_ENV_JAVA_OPTS}"
+    FLINK_ENV_JAVA_OPTS=$configValue
 
     # Remove leading and ending double quotes (if present) of value
     FLINK_ENV_JAVA_OPTS="$( echo "${FLINK_ENV_JAVA_OPTS}" | sed -e 's/^"//'  -e 's/"$//' )"
 fi
 
 if [ -z "${FLINK_ENV_JAVA_OPTS_JM}" ]; then
-    FLINK_ENV_JAVA_OPTS_JM=$(readFromConfig ${KEY_ENV_JAVA_OPTS_JM} "${DEFAULT_ENV_JAVA_OPTS_JM}" "${YAML_CONF}")
+    readFromConfig ${KEY_ENV_JAVA_OPTS_JM} "${DEFAULT_ENV_JAVA_OPTS_JM}"
+    FLINK_ENV_JAVA_OPTS_JM=$configValue
     # Remove leading and ending double quotes (if present) of value
     FLINK_ENV_JAVA_OPTS_JM="$( echo "${FLINK_ENV_JAVA_OPTS_JM}" | sed -e 's/^"//'  -e 's/"$//' )"
 fi
 
 if [ -z "${FLINK_ENV_JAVA_OPTS_TM}" ]; then
-    FLINK_ENV_JAVA_OPTS_TM=$(readFromConfig ${KEY_ENV_JAVA_OPTS_TM} "${DEFAULT_ENV_JAVA_OPTS_TM}" "${YAML_CONF}")
+    readFromConfig ${KEY_ENV_JAVA_OPTS_TM} "${DEFAULT_ENV_JAVA_OPTS_TM}"
+    FLINK_ENV_JAVA_OPTS_TM=$configValue
     # Remove leading and ending double quotes (if present) of value
     FLINK_ENV_JAVA_OPTS_TM="$( echo "${FLINK_ENV_JAVA_OPTS_TM}" | sed -e 's/^"//'  -e 's/"$//' )"
 fi
 
 if [ -z "${FLINK_ENV_JAVA_OPTS_HS}" ]; then
-    FLINK_ENV_JAVA_OPTS_HS=$(readFromConfig ${KEY_ENV_JAVA_OPTS_HS} "${DEFAULT_ENV_JAVA_OPTS_HS}" "${YAML_CONF}")
+    readFromConfig ${KEY_ENV_JAVA_OPTS_HS} "${DEFAULT_ENV_JAVA_OPTS_HS}"
+    FLINK_ENV_JAVA_OPTS_HS=$configValue
     # Remove leading and ending double quotes (if present) of value
     FLINK_ENV_JAVA_OPTS_HS="$( echo "${FLINK_ENV_JAVA_OPTS_HS}" | sed -e 's/^"//'  -e 's/"$//' )"
 fi
 
 if [ -z "${FLINK_SSH_OPTS}" ]; then
-    FLINK_SSH_OPTS=$(readFromConfig ${KEY_ENV_SSH_OPTS} "${DEFAULT_ENV_SSH_OPTS}" "${YAML_CONF}")
+    readFromConfig ${KEY_ENV_SSH_OPTS} "${DEFAULT_ENV_SSH_OPTS}"
+    FLINK_SSH_OPTS=$configValue
 fi
 
 # Define ZK_HEAP if it is not already set
 if [ -z "${ZK_HEAP}" ]; then
-    ZK_HEAP=$(readFromConfig ${KEY_ZK_HEAP_MB} 0 "${YAML_CONF}")
+    readFromConfig ${KEY_ZK_HEAP_MB} 0
+    ZK_HEAP=$configValue
 fi
 
 # High availability
 if [ -z "${HIGH_AVAILABILITY}" ]; then
-     HIGH_AVAILABILITY=$(readFromConfig ${KEY_HIGH_AVAILABILITY} "" "${YAML_CONF}")
-     if [ -z "${HIGH_AVAILABILITY}" ]; then
+    readFromConfig ${KEY_HIGH_AVAILABILITY} ""
+    HIGH_AVAILABILITY=$configValue
+    if [ -z "${HIGH_AVAILABILITY}" ]; then
         # Try deprecated value
-        DEPRECATED_HA=$(readFromConfig "recovery.mode" "" "${YAML_CONF}")
+        readFromConfig "recovery.mode" ""
+        DEPRECATED_HA=$configValue
         if [ -z "${DEPRECATED_HA}" ]; then
             HIGH_AVAILABILITY="none"
         elif [ ${DEPRECATED_HA} == "standalone" ]; then
@@ -453,7 +493,7 @@ if [ -z "${HIGH_AVAILABILITY}" ]; then
         else
             HIGH_AVAILABILITY=${DEPRECATED_HA}
         fi
-     fi
+    fi
 fi
 
 # Arguments for the JVM. Used for job and task manager JVMs.
