@@ -442,28 +442,32 @@ if [ -z "${FLINK_ENV_JAVA_OPTS}" ]; then
     FLINK_ENV_JAVA_OPTS=$configValue
 
     # Remove leading and ending double quotes (if present) of value
-    FLINK_ENV_JAVA_OPTS="$( echo "${FLINK_ENV_JAVA_OPTS}" | sed -e 's/^"//'  -e 's/"$//' )"
+    FLINK_ENV_JAVA_OPTS=${FLINK_ENV_JAVA_OPTS#\"}
+    FLINK_ENV_JAVA_OPTS=${FLINK_ENV_JAVA_OPTS%\"}
 fi
 
 if [ -z "${FLINK_ENV_JAVA_OPTS_JM}" ]; then
     readFromConfig ${KEY_ENV_JAVA_OPTS_JM} "${DEFAULT_ENV_JAVA_OPTS_JM}"
     FLINK_ENV_JAVA_OPTS_JM=$configValue
     # Remove leading and ending double quotes (if present) of value
-    FLINK_ENV_JAVA_OPTS_JM="$( echo "${FLINK_ENV_JAVA_OPTS_JM}" | sed -e 's/^"//'  -e 's/"$//' )"
+    FLINK_ENV_JAVA_OPTS_JM=${FLINK_ENV_JAVA_OPTS_JM#\"}
+    FLINK_ENV_JAVA_OPTS_JM=${FLINK_ENV_JAVA_OPTS_JM%\"}
 fi
 
 if [ -z "${FLINK_ENV_JAVA_OPTS_TM}" ]; then
     readFromConfig ${KEY_ENV_JAVA_OPTS_TM} "${DEFAULT_ENV_JAVA_OPTS_TM}"
     FLINK_ENV_JAVA_OPTS_TM=$configValue
     # Remove leading and ending double quotes (if present) of value
-    FLINK_ENV_JAVA_OPTS_TM="$( echo "${FLINK_ENV_JAVA_OPTS_TM}" | sed -e 's/^"//'  -e 's/"$//' )"
+    FLINK_ENV_JAVA_OPTS_TM=${FLINK_ENV_JAVA_OPTS_TM#\"}
+    FLINK_ENV_JAVA_OPTS_TM=${FLINK_ENV_JAVA_OPTS_TM%\"}
 fi
 
 if [ -z "${FLINK_ENV_JAVA_OPTS_HS}" ]; then
     readFromConfig ${KEY_ENV_JAVA_OPTS_HS} "${DEFAULT_ENV_JAVA_OPTS_HS}"
     FLINK_ENV_JAVA_OPTS_HS=$configValue
     # Remove leading and ending double quotes (if present) of value
-    FLINK_ENV_JAVA_OPTS_HS="$( echo "${FLINK_ENV_JAVA_OPTS_HS}" | sed -e 's/^"//'  -e 's/"$//' )"
+    FLINK_ENV_JAVA_OPTS_HS=${FLINK_ENV_JAVA_OPTS_HS#\"}
+    FLINK_ENV_JAVA_OPTS_HS=${FLINK_ENV_JAVA_OPTS_HS%\"}
 fi
 
 if [ -z "${FLINK_SSH_OPTS}" ]; then
